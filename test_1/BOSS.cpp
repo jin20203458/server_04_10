@@ -11,7 +11,7 @@ BOSS::BOSS() : x(0), y(0), hp(100), maxHp(100), currentState(BossState::IDLE)
 void BOSS::update()
 {
     DWORD currentTime = GetTickCount64();
-    if (currentTime - lastUpdateTime < 3000)
+    if (currentTime - lastUpdateTime < 2000)
     {
         return; // 아직 3초 안 지남
     }
@@ -27,11 +27,13 @@ void BOSS::update()
     // 상태 변경 - 같은 상태가 나오지 않게
     BossState newState;
     do {
-        int r = rand() % 3;
-        switch (r) {
+        int r = rand() % 4;
+        switch (r)
+        {
         case 0: newState = BossState::IDLE; break;
-        case 1: newState = BossState::LFD; break;
-        case 2: newState = BossState::RFD; break;
+        case 1: newState = BossState::LeftFistDown; break;
+        case 2: newState = BossState::RightFistDown; break;
+        case 3: newState = BossState::AllFistDown; break;
         }
     } while (newState == currentState);  // 이전과 같은 상태면 다시 뽑기
 

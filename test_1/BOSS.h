@@ -6,9 +6,10 @@
 enum class BossState : uint8_t 
 {
     IDLE = 0x00,  // 대기
-    LFD = 0x01,   // 왼손 내려치기
-    RFD = 0x02,    // 오른손 내려치기
-    DEAD = 0x03    // 오른손 내려치기
+    LeftFistDown = 0x01,   // 왼손 내려치기
+    RightFistDown = 0x02,    // 오른손 내려치기
+    AllFistDown = 0x03,    // 양손 내려치기
+    DEAD = 0x04    // 오른손 내려치기
 };
 
 class BOSS {

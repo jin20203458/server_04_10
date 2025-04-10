@@ -178,7 +178,7 @@ void GameWorld::updateBossLoop()
 		boss.update();
 		LeaveCriticalSection(&bossCriticalSection);
 
-		std::this_thread::sleep_for(std::chrono::milliseconds(100));  // 100ms마다 반복
+		std::this_thread::sleep_for(std::chrono::milliseconds(20));  // 100ms마다 반복
 	}
 }
 
@@ -206,6 +206,7 @@ void GameWorld::sendWorldData() // 보낼 데이터
 		currentState = boss.getState();
 		LeaveCriticalSection(&bossCriticalSection);
 
+		// 보스 상태가 변경되었는지 확인
 		if (previousState != currentState)
 		{
 			std::print("BOSS state changed to {}\n", static_cast<int>(boss.getState()));
@@ -213,6 +214,8 @@ void GameWorld::sendWorldData() // 보낼 데이터
 			previousState = boss.getState();
 		}
 
+
+		// 플레이어 데이터 직렬화
 		lockPlayers();
 		for (auto& pair : players)
 		{
@@ -224,13 +227,16 @@ void GameWorld::sendWorldData() // 보낼 데이터
 		}
 		unlockPlayers();
 
-		if (worldPacket.header.bossActed)
+		// 보스 데이터 직렬화
+		if (worldPacket.header.bossActed) // 보스의 변동사항이 있었다면
 		{
 			worldPacket.write<uint8_t>(static_cast<uint8_t>(boss.getState())); // 보스 상태
 		}
 
+
 		std::vector<uint8_t> serializedPacket = worldPacket.Serialize();  // 패킷 직렬화
 		const char* sendBuffer = reinterpret_cast<const char*>(serializedPacket.data());
+
 
 		// 직렬화된 월드 데이터를 모든 플레이어에게 브로드캐스트
 		for (auto& pair : players)
@@ -240,7 +246,7 @@ void GameWorld::sendWorldData() // 보낼 데이터
 				, static_cast<int>(serializedPacket.size()), 0);
 		}
 		//std::cout << "패킷 사이즈" << serializedPacket.size() << std::endl;
-		std::this_thread::sleep_for(std::chrono::milliseconds(5));  // 보내는 속도 조절(서버에서 클라이언트들로)
+		std::this_thread::sleep_for(std::chrono::milliseconds(10));  // 보내는 속도 조절(서버에서 클라이언트들로)
 	}
 }
 
