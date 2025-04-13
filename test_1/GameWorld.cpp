@@ -5,14 +5,12 @@
 GameWorld::GameWorld() : listenSock(INVALID_SOCKET), iocp(NULL), running(false)
 {
 	InitializeCriticalSection(&playersCriticalSection);
-	InitializeCriticalSection(&bossCriticalSection);
 	mapPtr = new Map(-36, 6, 0, 11); 
 }
 
 GameWorld::~GameWorld() { 
 	stop();
 	DeleteCriticalSection(&playersCriticalSection);
-	DeleteCriticalSection(&bossCriticalSection);
 }
 
 void GameWorld::start()
@@ -143,8 +141,8 @@ void GameWorld::workerThread()
 			// 패킷 타입을 읽고 처리
 			PacketType dataType = packet.header.type;
 
-			if     (dataType == PacketType::PlayerInit)   processPlayerInit(player, packet);
-			else if(dataType == PacketType::PlayerUpdate) processPlayerUpdate(player, packet);
+			if     (dataType == PacketType::PlayerInit)   player->processInit(packet);
+			else if(dataType == PacketType::PlayerUpdate) player->processUpdate(packet);
 			else if(dataType == PacketType::MonsterUpdate)processMonsterUpdate(packet);
 			else    std::cerr << "Invalid packet type\n";
 		}
@@ -152,31 +150,19 @@ void GameWorld::workerThread()
 }
 
 
-void GameWorld::processPlayerInit(PlayerData* player, Packet& packet)
-{
-	player->processInit(packet);
-}
-
-void GameWorld::processPlayerUpdate(PlayerData* player, Packet& packet)
-{
-	player->processUpdate(packet);
-}
-
 void GameWorld::processMonsterUpdate(Packet& packet)
 {
-	float monsterX = packet.read<float>();
-	float monsterY = packet.read<float>();
-
-	std::print("Monster updated position to ({}, {})\n", monsterX, monsterY);
+	int damage = packet.read<int>();
+	boss.takeDamage(damage);
 }
 
 void GameWorld::updateBossLoop()
 {
 	while (running)
 	{
-		EnterCriticalSection(&bossCriticalSection);
+		boss.lock();
 		boss.update();
-		LeaveCriticalSection(&bossCriticalSection);
+		boss.unlock();
 
 		std::this_thread::sleep_for(std::chrono::milliseconds(20));  // 100ms마다 반복
 	}
@@ -185,35 +171,17 @@ void GameWorld::updateBossLoop()
 
 void GameWorld::sendWorldData() // 보낼 데이터
 {
-	BossState previousState;
-
-	EnterCriticalSection(&bossCriticalSection);
-    previousState = boss.getState();
-	LeaveCriticalSection(&bossCriticalSection);
+	BossState currentState;
 
 	while (running)
 	{
 		if (players.empty()) continue;
 
-		// 월드 데이터 직렬화
+		// 월드 헤더 설정
 		Packet worldPacket;
 		worldPacket.header.type = PacketType::WorldUpdate;
 		worldPacket.header.playerCount = players.size();
 		worldPacket.header.bossActed = false;
-
-		BossState currentState;
-		EnterCriticalSection(&bossCriticalSection);
-		currentState = boss.getState();
-		LeaveCriticalSection(&bossCriticalSection);
-
-		// 보스 상태가 변경되었는지 확인
-		if (previousState != currentState)
-		{
-			std::print("BOSS state changed to {}\n", static_cast<int>(boss.getState()));
-			worldPacket.header.bossActed = true;
-			previousState = boss.getState();
-		}
-
 
 		// 플레이어 데이터 직렬화
 		lockPlayers();
@@ -227,16 +195,34 @@ void GameWorld::sendWorldData() // 보낼 데이터
 		}
 		unlockPlayers();
 
+
+		boss.lock();
+		currentState = boss.getState();
+
+		// 보스 상태가 변경되었는지 확인
+		if (boss.hasStateChanged())
+		{
+			std::print("BOSS state changed to {}\n", static_cast<int>(currentState));
+			worldPacket.header.bossActed = true;
+		}
+		if (boss.hasHpChanged())
+		{
+			std::print("BOSS HP changed to {}\n", boss.hp);
+			worldPacket.header.bossActed = true;
+		}
+
 		// 보스 데이터 직렬화
 		if (worldPacket.header.bossActed) // 보스의 변동사항이 있었다면
 		{
-			worldPacket.write<uint8_t>(static_cast<uint8_t>(boss.getState())); // 보스 상태
+			worldPacket.write<uint8_t>(static_cast<uint8_t>(currentState)); // 보스 상태
+			worldPacket.write<int>(boss.hp); // 보스 HP
 		}
+		boss.unlock();
 
 
-		std::vector<uint8_t> serializedPacket = worldPacket.Serialize();  // 패킷 직렬화
+		// 월드 패킷 직렬화
+		std::vector<uint8_t> serializedPacket = worldPacket.Serialize();  
 		const char* sendBuffer = reinterpret_cast<const char*>(serializedPacket.data());
-
 
 		// 직렬화된 월드 데이터를 모든 플레이어에게 브로드캐스트
 		for (auto& pair : players)

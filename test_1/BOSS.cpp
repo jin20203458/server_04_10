@@ -2,30 +2,43 @@
 #include <cstdlib>
 #include <ctime>
 
-BOSS::BOSS() : x(0), y(0), hp(100), maxHp(100), currentState(BossState::IDLE)
+BOSS::BOSS() : x(0), y(0), hp(2500), maxHp(3000), currentState(BossState::IDLE)
 {
+	previousHp = hp;
+	previousState = currentState;
+
     lastUpdateTime = GetTickCount64();
     srand(static_cast<unsigned>(time(nullptr)));
+    InitializeCriticalSection(&cs);
+}
+
+BOSS::~BOSS()
+{
+    DeleteCriticalSection(&cs);
 }
 
 void BOSS::update()
 {
+    lock();
+
     DWORD currentTime = GetTickCount64();
     if (currentTime - lastUpdateTime < 2000)
     {
-        return; // 아직 3초 안 지남
+        unlock();
+        return;
     }
 
     lastUpdateTime = currentTime;
 
     if (isDead())
     {
-		currentState = BossState::DEAD;
+        currentState = BossState::DEAD;
+        unlock();
         return;
     }
 
-    // 상태 변경 - 같은 상태가 나오지 않게
-    BossState newState;
+    // 상태 변경 - 같은 상태 피하기
+    BossState newState = BossState::IDLE; // 기본값
     do {
         int r = rand() % 4;
         switch (r)
@@ -35,42 +48,85 @@ void BOSS::update()
         case 2: newState = BossState::RightFistDown; break;
         case 3: newState = BossState::AllFistDown; break;
         }
-    } while (newState == currentState);  // 이전과 같은 상태면 다시 뽑기
+    } while (newState == currentState);
 
     currentState = newState;
+
+    unlock();
 }
 
-
-void BOSS::takeDamage(int amount) 
+void BOSS::takeDamage(int amount)
 {
+    lock();
     hp -= amount;
     if (hp <= 0)
- {
+    {
         hp = 0;
         currentState = BossState::IDLE;
     }
+    unlock();
 }
 
-bool BOSS::isDead() const 
+bool BOSS::isDead() const
 {
-    return hp <= 0;
+    lock();  // const 함수이므로 lock() 호출을 위해 cast
+    bool dead = (hp <= 0);
+    unlock();
+    return dead;
 }
 
-void BOSS::reset() 
+void BOSS::reset()
 {
+    lock();
     hp = maxHp;
     currentState = BossState::IDLE;
     x = y = 0;
     lastUpdateTime = GetTickCount64();
+    unlock();
 }
 
 BossState BOSS::getState() const
 {
-    return currentState;
+    lock();
+    BossState state = currentState;
+    unlock();
+    return state;
 }
 
-void BOSS::setState(BossState newState) 
+void BOSS::setState(BossState newState)
 {
+    lock();
     currentState = newState;
+    unlock();
 }
 
+bool BOSS::hasStateChanged() {
+    lock();
+    bool changed = (previousState != currentState);
+    previousState = currentState;
+    unlock();
+    return changed;
+}
+
+bool BOSS::hasHpChanged() {
+    lock();
+    bool changed = (previousHp != hp);
+    previousHp = hp;
+    unlock();
+    return changed;
+}
+
+void BOSS::lock() const
+{
+    EnterCriticalSection(&cs);
+}
+
+void BOSS::unlock() const
+{
+    LeaveCriticalSection(&cs);
+}
+
+bool BOSS::tryLock()
+{
+    return TryEnterCriticalSection(&cs);
+}
