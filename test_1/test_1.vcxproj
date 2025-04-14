@@ -140,6 +140,7 @@
     <ClInclude Include="ClientSession.h" />
     <ClInclude Include="GameWorld.h" />
     <ClInclude Include="MAP.h" />
+    <ClInclude Include="MovingTrap.h" />
     <ClInclude Include="Packet.h" />
     <ClInclude Include="PlayerData.h" />
     <ClInclude Include="RingBuffer.h" />

@@ -3,8 +3,8 @@
 #include <winsock2.h>
 #include <thread>
 #include "PlayerData.h"
-#include "MAP.h"
 #include "BOSS.h"
+#include "MovingTrap.h"
 constexpr int PORT = 5000;
 constexpr int SEND_BUFFER_SIZE = 4096;
 
@@ -25,6 +25,7 @@ private:
     void unlockPlayers();
 
     void updateMapLoop();
+    void updateMovingTraps();
     void processMonsterUpdate(Packet& packet);
     void updateBossLoop();
 
@@ -33,6 +34,7 @@ private:
    
     bool running;
     Map* mapPtr;
+    std::vector<MovingTrap> traps;
     BOSS boss;
 
     SOCKET listenSock;

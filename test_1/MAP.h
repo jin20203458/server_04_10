@@ -15,8 +15,8 @@ public:
         return (x >= minX && x <= maxX && y >= minY && y <= maxY);
     }
 
-private: // x :-36, 6
-         // y :  0, 11
+private: // x :-32, 2
+         // y : -2, 10
     int minX;
     int maxX;
     int minY;

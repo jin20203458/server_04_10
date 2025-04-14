@@ -5,7 +5,15 @@
 GameWorld::GameWorld() : listenSock(INVALID_SOCKET), iocp(NULL), running(false)
 {
 	InitializeCriticalSection(&playersCriticalSection);
-	mapPtr = new Map(-36, 6, 0, 11); 
+	mapPtr = new Map(-32, 2, -2, 10); 
+
+	// MovingTrap 초기화
+	traps.emplace_back(0.0f, 0.0f, *mapPtr, "T1");
+	traps.emplace_back(3.0f, 0.0f, *mapPtr, "T2");
+	traps.emplace_back(3.0f, 0.0f, *mapPtr, "T3");
+	traps.emplace_back(3.0f, 0.0f, *mapPtr, "T4");
+	traps.emplace_back(3.0f, 0.0f, *mapPtr, "T5");
+
 }
 
 GameWorld::~GameWorld() { 
@@ -61,6 +69,10 @@ void GameWorld::start()
 	// 보스 행동 주기적 업데이트
 	bossThread = std::thread(&GameWorld::updateBossLoop, this);
 	bossThread.detach();
+	// 맵 주기적 업데이트
+	mapThread = std::thread(&GameWorld::updateMapLoop, this);
+	mapThread.detach();
+
 	acceptConnections();
 }
 
@@ -168,6 +180,24 @@ void GameWorld::updateBossLoop()
 	}
 }
 
+void GameWorld::updateMovingTraps()
+{
+	for (auto& trap : traps) 
+	{
+		trap.update();
+		/*std::print("Trap {} is at ({:.2f}, {:.2f})\n",
+			trap.getId(), trap.getX(), trap.getY());*/
+	}
+}
+
+void GameWorld::updateMapLoop()
+{
+	while (running)
+	{
+		updateMovingTraps(); // 맵 업데이트
+		std::this_thread::sleep_for(std::chrono::milliseconds(20));  // 100ms마다 반복
+	}
+}
 
 void GameWorld::sendWorldData() // 보낼 데이터
 {
@@ -194,6 +224,16 @@ void GameWorld::sendWorldData() // 보낼 데이터
 			worldPacket.write<uint8_t>(player->getAnimTypeAsByte());
 		}
 		unlockPlayers();
+
+
+		// MovingTrap 데이터 직렬화
+		worldPacket.write<uint8_t>(traps.size()); // 트랩 개수
+		for (const auto& trap : traps) 
+		{
+			worldPacket.writeString(trap.getId());        // 트랩 ID
+			worldPacket.write<float>(trap.getX());        // 트랩 X 좌표
+			worldPacket.write<float>(trap.getY());        // 트랩 Y 좌표
+		}
 
 
 		boss.lock();
