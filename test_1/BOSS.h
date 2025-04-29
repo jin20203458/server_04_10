@@ -5,11 +5,13 @@
 // 보스의 상태 정의
 enum class BossState : uint8_t 
 {
-    IDLE = 0x00,  // 대기
-    LeftFistDown = 0x01,   // 왼손 내려치기
-    RightFistDown = 0x02,    // 오른손 내려치기
-    AllFistDown = 0x03,    // 양손 내려치기
-    DEAD = 0x04    // 오른손 내려치기
+    IDLE = 0x00,          // 대기
+    LeftFistDown = 0x01,  // 왼손 내려치기
+    RightFistDown = 0x02, // 오른손 내려치기
+    AllFistDown = 0x03,   // 양손 내려치기
+	Shout = 0x04,         // 외침 (추후 확장 가능)
+	LeftWield = 0x05,     // 왼손 휘두르기
+	DEAD = 0x06,         // 죽음  
 };
 
 class BOSS {

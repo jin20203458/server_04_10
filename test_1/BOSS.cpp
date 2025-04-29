@@ -40,13 +40,15 @@ void BOSS::update()
     // 상태 변경 - 같은 상태 피하기
     BossState newState = BossState::IDLE; // 기본값
     do {
-        int r = rand() % 4;
+        int r = rand() % 6;
         switch (r)
         {
         case 0: newState = BossState::IDLE; break;
         case 1: newState = BossState::LeftFistDown; break;
         case 2: newState = BossState::RightFistDown; break;
         case 3: newState = BossState::AllFistDown; break;
+        case 4: newState = BossState::Shout; break;
+		case 5: newState = BossState::LeftWield; break;
         }
     } while (newState == currentState);
 
